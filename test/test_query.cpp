@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <sqlite.h>
 #include <query.h>
+#include <sqlite3.h>
 
 #include "test_helpers.h"
 
@@ -107,6 +108,13 @@ BOOST_AUTO_TEST_CASE(test_iter_vec)
 	BOOST_CHECK(vec == std::vector<std::uint64_t>({42, 21}));
 }
 
+// error strings were updated in 3.19.4 release
+#if SQLITE_VERSION_NUMBER >= 3019004
+# define COLUMN_INDEX_RANGE_ERROR_MESSAGE "Can't bind foo: column index out of range"
+#else
+# define COLUMN_INDEX_RANGE_ERROR_MESSAGE "Can't bind foo: bind or column index out of range"
+#endif
+
 BOOST_AUTO_TEST_CASE(test_fail_bind)
 {
 	// db creation
@@ -117,6 +125,6 @@ BOOST_AUTO_TEST_CASE(test_fail_bind)
 	try {
 		statement.bind_arg_cast(4, static_cast<std::uint64_t>(42), "foo");
 	} catch(const reven::sqlite::DatabaseError& e) {
-		BOOST_CHECK_EQUAL(e.what(), "Can't bind foo: bind or column index out of range");
+		BOOST_CHECK_EQUAL(e.what(), COLUMN_INDEX_RANGE_ERROR_MESSAGE);
 	}
 }
