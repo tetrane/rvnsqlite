@@ -72,7 +72,7 @@ constexpr std::uint64_t signed_to_unsigned_offset = std::uint64_t{1} + std::nume
 std::int64_t unsigned_to_signed_int64(std::uint64_t value)
 {
 	// Ensure we have the correct implementation-defined result
-	static_assert(-1 == ~0, "You need two's complement to harness the power of REVEN.");
+	static_assert(-1 == ~0, "You need two's complement to harness the power of Reven.");
 	return value - signed_to_unsigned_offset;
 }
 
