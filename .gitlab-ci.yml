@@ -1,0 +1,111 @@
+image: debian:stable
+
+stages:
+    - build
+    - test
+    - coverage
+    - deploy
+
+.build:
+    stage: build
+
+    script:
+        - mkdir build
+        - cd build
+        - cmake -DCMAKE_C_COMPILER=$CMAKE_C_COMPILER -DCMAKE_CXX_COMPILER=$CMAKE_CXX_COMPILER
+                -DBUILD_TEST_COVERAGE=$BUILD_TEST_COVERAGE
+                ..
+        - make
+
+    artifacts:
+        paths:
+            - build/
+
+build:gcc:
+    extends: .build
+
+    before_script:
+        - apt-get update && apt-get install -y cmake g++ libboost-test-dev libsqlite3-dev
+
+    variables:
+        CMAKE_C_COMPILER: gcc
+        CMAKE_CXX_COMPILER: g++
+        BUILD_TEST_COVERAGE: "ON"
+
+build:clang:
+    extends: .build
+
+    before_script:
+        - apt-get update && apt-get install -y cmake clang libboost-test-dev libsqlite3-dev
+
+    variables:
+        CMAKE_C_COMPILER: clang
+        CMAKE_CXX_COMPILER: clang++
+        BUILD_TEST_COVERAGE: "OFF"
+
+
+.test:
+    stage: test
+
+    before_script:
+        - apt-get update && apt-get install -y cmake libboost-test-dev libsqlite3-dev
+
+    script:
+        - cd build/
+        - ctest --output-on-failure
+
+    artifacts:
+        paths:
+            - build
+
+test:gcc:
+    extends: .test
+
+    dependencies:
+        - build:gcc
+
+test:clang:
+    extends: .test
+
+    dependencies:
+        - build:clang
+
+
+coverage:gcc:
+    stage: coverage
+
+    before_script:
+        - apt-get update && apt-get install -y lcov
+
+    dependencies:
+        - test:gcc
+
+    script:
+        - lcov --directory build/ --capture --output-file coverage.info
+        - lcov --remove coverage.info '/usr/*' --output-file coverage.info
+        - lcov --list coverage.info
+        - genhtml coverage.info -o coverage_report
+
+    coverage: "/\\s+Total:\\|(\\d+\\.\\d+)%/"
+
+    artifacts:
+        paths:
+            - coverage_report/
+
+
+pages:
+    stage: deploy
+
+    dependencies:
+        - coverage:gcc
+
+    script:
+        - mv coverage_report/ public/
+
+    artifacts:
+        paths:
+            - public
+        expire_in: 30 days
+
+    rules:
+      - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
